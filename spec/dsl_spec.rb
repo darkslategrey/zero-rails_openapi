@@ -58,7 +58,7 @@ RSpec.describe OpenApi::DSL do
       make -> do
         api_dry(:index) { response :success, 'success response' }
         api :create
-        api(:index) { dry }
+        api(:index) { response 404, 'not found'; dry }
       end, has_keys!: :goods
       focus_on :goods, :get
       expect_its :responses, has_keys: :success

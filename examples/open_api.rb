@@ -1,4 +1,4 @@
-require 'open_api'
+require_relative '../lib/open_api'
 
 OpenApi::Config.class_eval do
   # Config DSL

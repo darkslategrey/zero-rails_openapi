@@ -136,7 +136,6 @@ module OpenApi
         self[:parameters].map!(&:process)
         self[:requestBody] = self[:requestBody].try(:process)
         self[:responses].each { |code, response| self[:responses][code] = response.process }
-        self[:responses] = self[:responses].sort.to_h
         self.delete_if { |_, v| v.blank? }
       end
     end

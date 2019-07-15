@@ -12,31 +12,37 @@ module OpenApi
             # :nocov:
             # ref https://github.com/rails/rails/blob/master/railties/lib/rails/tasks/routes.rake
             require './config/routes'
-            all_routes = Rails.application.routes.routes
-            require 'action_dispatch/routing/inspector'
-            inspector = ActionDispatch::Routing::RoutesInspector.new(all_routes)
-            if Rails::VERSION::MAJOR < 6
-              inspector.format(ActionDispatch::Routing::ConsoleFormatter.new, nil)
-            else
-              inspector.format(ActionDispatch::Routing::ConsoleFormatter::Sheet.new)
-            end
+            Rails.application.routes.routes
+            # if Rails::VERSION::MAJOR < 6
+            #   inspector.format(ActionDispatch::Routing::ConsoleFormatter.new, nil)
+            # else
+            #   inspector.format(ActionDispatch::Routing::ConsoleFormatter::Sheet.new)
+            # end
             # :nocov:
           end
     end
 
+    # => { "api/v1/examples" => [{http_verb: 'get', path: '/a/b/{user_id}', action_path: 'ctrl#action'},..] }, group by paths
     def routes_list
-      @routes_list ||= routes.split("\n").drop(1).map do |line|
-        next unless line['#']
-        infos = line.match(/[A-Z|].*/).to_s.split(' ') # => [GET, /api/v1/examples/:id, api/v1/examples#index]
-
-        {
-            http_verb: infos[0].downcase, # => "get" / "get|post"
-            path: infos[1][0..-11].split('/').map do |item|
-                    item[':'] ? "{#{item[1..-1]}}" : item
-                  end.join('/'),          # => "/api/v1/examples/{id}"
-            action_path: infos[2]         # => "api/v1/examples#index"
-        } rescue next
-      end.compact.group_by { |api| api[:action_path].split('#').first } # => { "api/v1/examples" => [..] }, group by paths
+      ctrls = {}
+      @routes_list ||= routes.select do |route|
+        !route.defaults.blank? && \
+        !route.defaults[:internal] && \
+        !route.defaults[:controller].blank?
+      end.each do |route|
+        ctrl = route.defaults[:controller]
+        # byebug
+        actions = ctrls[ctrl] || []
+        actions << {
+          http_verb: route.verb.downcase,
+          # path: s,/ctrl/:param/action,/ctrl/{param}/action,
+          path: route.path.spec.to_s.gsub(/:([a-z_]+)/) do |param|
+            "{#{$1}}"
+          end,
+          action_path: "#{ctrl}##{route.defaults[:action]}"
+        }
+        ctrls[ctrl] = actions
+      end && ctrls
     end
 
     def get_actions_by_route_base(route_base)
